@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Student;
@@ -9,85 +8,92 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class StudentController extends Controller
 {
-    /**
-     * Display student dashboard with exam summary
-     */
+    private function getStudentData()
+    {
+        $student = auth()->user()->student;
+
+        $exams = $student->exams()
+            ->with(['subject' => function($q) {
+                $q->where('published', true);
+            }])
+            ->get()
+            ->filter(fn($e) => $e->subject !== null)
+            ->values();
+
+        // Only count failures in subjects that match the student's own category
+        $failedExams = $exams->where('status', 'Fail')
+            ->filter(fn($e) => $e->subject->category === $student->category);
+
+        $failedCount = $failedExams->count();
+
+        $resitType = null;
+        if ($failedCount === 1) $resitType = 'single';
+        elseif ($failedCount > 1) $resitType = 'full';
+
+        return compact('student', 'exams', 'failedExams', 'resitType');
+    }
+
     public function dashboard()
     {
         $student = auth()->user()->student;
-        $exams = $student->exams()->with('subject')->get();
 
-        return view('student.dashboard', compact('student', 'exams'));
+        if (!$student) {
+            return view('student.no_profile')
+                ->with('error', 'Student profile not found.');
+        }
+
+        extract($this->getStudentData());
+
+        return view('student.dashboard', compact('student', 'exams', 'failedExams', 'resitType'));
     }
 
-    /**
-     * Record an exam result (called by instructor)
-     */
+    public function viewResults()
+    {
+        extract($this->getStudentData());
+        return view('student.results', compact('student', 'exams', 'failedExams', 'resitType'));
+    }
+
+    public function downloadResult()
+    {
+        extract($this->getStudentData());
+        $pdf = Pdf::loadView('student.results_pdf', compact('student', 'exams', 'failedExams', 'resitType'));
+        return $pdf->download('results_' . $student->index_number . '.pdf');
+    }
+
     public function recordExam(Request $request, $studentId)
     {
         $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'marks' => 'required|numeric|min:0|max:500',
+            'subject_id'     => 'required|exists:subjects,id',
+            'marks'          => 'nullable|numeric|min:0|max:500',
             'attempt_number' => 'required|integer|min:1|max:3',
         ]);
 
         $student = Student::findOrFail($studentId);
+        $status = is_null($request->marks) ? 'Pending' : ($request->marks >= 400 ? 'Pass' : 'Fail');
 
         $exam = $student->exams()->create([
-            'subject_id' => $request->subject_id,
-            'marks' => $request->marks,
+            'subject_id'     => $request->subject_id,
+            'marks'          => $request->marks,
             'attempt_number' => $request->attempt_number,
+            'status'         => $status,
         ]);
 
-        // Apply exam rules
-        if ($exam->marks >= 400) {
-            $exam->passed = true;
-            $exam->resit_needed = false;
-        } else {
-            $exam->passed = false;
+        if ($status === 'Fail') {
+            $exam->update(['resit_needed' => true]);
 
-            // Count failed subjects in this attempt
-            $failedSubjectsCount = $student->exams()
+            // Count failed subjects in student's own category for this attempt
+            $failedInCategory = $student->exams()
                 ->where('attempt_number', $exam->attempt_number)
-                ->where('passed', false)
+                ->where('status', 'Fail')
+                ->whereHas('subject', fn($q) => $q->where('category', $student->category))
                 ->count();
 
-            // If more than one failed subject, resit entire exam
-            $exam->resit_needed = $failedSubjectsCount > 1;
-
-            // Decrease attempts left
-            if ($student->attempts_left > 0) {
-                $student->attempts_left -= 1;
-                $student->save();
+            // Only decrement attempts if 2+ failures in category (full resit triggered)
+            if ($failedInCategory >= 2 && $student->attempts_left > 0) {
+                $student->decrement('attempts_left');
             }
         }
 
-        $exam->save();
-
-        return back()->with('success', 'Exam result recorded successfully.');
-    }
-
-    /**
-     * View all student exam results
-     */
-    public function viewResults()
-    {
-        $student = auth()->user()->student;
-        $exams = $student->exams()->with('subject')->get();
-
-        return view('student.results', compact('student', 'exams'));
-    }
-
-    /**
-     * Download exam results as PDF
-     */
-    public function downloadResult()
-    {
-        $student = auth()->user()->student;
-        $exams = $student->exams()->with('subject')->get();
-
-        $pdf = Pdf::loadView('student.results_pdf', compact('student', 'exams'));
-
-        return $pdf->download('exam_results_' . $student->index_number . '.pdf');
+        return back()->with('success', 'Exam result recorded.');
     }
 }

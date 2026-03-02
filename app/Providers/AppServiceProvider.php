@@ -2,23 +2,29 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use App\Models\Subject;
+use App\Models\Exam;
+use App\Policies\SubjectPolicy;
+use App\Policies\ExamPolicy;
 
-class AppServiceProvider extends ServiceProvider
+class AppServiceProvider extends ServiceProvider 
 {
     /**
-     * Register any application services.
+     * The policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
      */
-    public function register(): void
-    {
-        //
-    }
+    protected $policies = [
+        Subject::class => SubjectPolicy::class,
+        Exam::class => ExamPolicy::class,
+    ];
 
     /**
-     * Bootstrap any application services.
+     * Register any authentication / authorization services.
      */
     public function boot(): void
     {
-        //
+        $this->registerPolicies();
     }
 }

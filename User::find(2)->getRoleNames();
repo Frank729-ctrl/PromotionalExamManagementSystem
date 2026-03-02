@@ -1,0 +1,23 @@
+[90m= [39m[
+    [
+      "[34mid[39m" => [35m1[39m,
+      "[34mname[39m" => "[32mStudent[39m",
+      "[34memail[39m" => "[32mstudent@example.com[39m",
+    ],
+    [
+      "[34mid[39m" => [35m2[39m,
+      "[34mname[39m" => "[32mInstructor[39m",
+      "[34memail[39m" => "[32minstructor@example.com[39m",
+    ],
+    [
+      "[34mid[39m" => [35m3[39m,
+      "[34mname[39m" => "[32mChief Examiner[39m",
+      "[34memail[39m" => "[32mexamboard@example.com[39m",
+    ],
+    [
+      "[34mid[39m" => [35m4[39m,
+      "[34mname[39m" => "[32mDirector General[39m",
+      "[34memail[39m" => "[32mdirector@example.com[39m",
+    ],
+  ]
+

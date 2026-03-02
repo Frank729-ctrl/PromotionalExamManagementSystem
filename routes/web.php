@@ -49,17 +49,26 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->group(function()
 // ===================== INSTRUCTOR ROUTES =====================
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->group(function() {
     Route::get('/dashboard', [InstructorController::class, 'dashboard'])->name('instructor.dashboard');
-    Route::post('/exams', [InstructorController::class, 'recordExam'])->name('instructor.exam.record');
+    Route::get('/students/{subject}', [InstructorController::class, 'subjectStudents'])->name('instructor.subject.students');
+    Route::get('/exam/{exam}/edit', [InstructorController::class, 'editExam'])->name('instructor.exam.edit');
+    Route::post('/exam/{exam}', [InstructorController::class, 'updateExam'])->name('instructor.exam.update');
+    Route::post('/subject/{subject}/submit', [InstructorController::class, 'submitResults'])->name('instructor.subject.submit');
 });
 
 // ===================== EXAM BOARD ROUTES =====================
 Route::middleware(['auth', 'role:examboard'])->prefix('examboard')->group(function() {
     Route::get('/dashboard', [ExamBoardController::class, 'dashboard'])->name('examboard.dashboard');
+    Route::get('/subject/{subject}', [ExamBoardController::class, 'reviewSubject'])->name('examboard.review');
+    Route::post('/subject/{subject}/approve', [ExamBoardController::class, 'approve'])->name('examboard.approve');
+    Route::post('/subject/{subject}/disapprove', [ExamBoardController::class, 'disapprove'])->name('examboard.disapprove');
+    Route::post('/subject/{subject}/send-to-director', [ExamBoardController::class, 'sendToDirector'])->name('examboard.send_to_director');
 });
 
 // ===================== DIRECTOR ROUTES =====================
 Route::middleware(['auth', 'role:director'])->prefix('director')->group(function() {
     Route::get('/dashboard', [DirectorController::class, 'dashboard'])->name('director.dashboard');
+    Route::get('/subject/{subject}', [DirectorController::class, 'reviewSubject'])->name('director.review');
+    Route::post('/subject/{subject}/publish', [DirectorController::class, 'publish'])->name('director.publish');
 });
 
 require __DIR__.'/auth.php';
